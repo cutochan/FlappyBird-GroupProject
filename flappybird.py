@@ -418,9 +418,15 @@ class MainGame():
         this.preKeys = keys
 
     def birdCollided(this):
+        # Check collision with pipes
         for pipe in this.pops:
             if(this.bird.rect.colliderect(pipe.t.rect) or this.bird.rect.colliderect(pipe.b.rect)):
                 return True
+
+        # Check if bird hits the top or bottom of the window
+        if this.bird.rect.top <= 0 or this.bird.rect.bottom >= HEIGHT:
+            return True
+        return False
         
     def checkScore(this):
         for pipe in this.pops:
