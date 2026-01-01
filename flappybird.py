@@ -104,6 +104,17 @@ class Bird(pygame.sprite.Sprite):
         this.hover()
         this.applyGravity()
 
+        # Update rotation based on velocity
+        current_velocity = this.fallVelocity if not this.isJumping else this.jumpForce
+        this.rotateAngle = min(0, max(-90, -current_velocity * 4))
+        
+        # Rotate the texture
+        this.texture = pygame.transform.rotate(birdTexture, this.rotateAngle)
+        # Adjust rect to keep center
+        old_center = this.rect.center
+        this.rect = this.texture.get_rect()
+        this.rect.center = old_center
+
         # Keep the bird inside the window
         this.rect.clamp_ip(window.get_rect())
 
