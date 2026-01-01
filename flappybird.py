@@ -400,7 +400,7 @@ class MainGame():
     #Game over    
         if(this.State == State.isOver):
             window.blit(this.overTexture,(WIDTH/2-225/2,HEIGHT/4))
-            if(this.keys[pygame.K_r]):
+            if(this.keys[pygame.K_SPACE] and not this.preKeys[pygame.K_SPACE]):
                 print("restarted!")
                 this.restart()
 
