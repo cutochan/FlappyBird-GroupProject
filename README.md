@@ -8,4 +8,4 @@
 - [ ] Âm thanh (sound effects, background music)  
 - [ ] Username (tùy chỉnh tên người chơi)  
 - [ ] Settings UI (chỉnh âm lượng, bật/tắt âm thanh)  
-- [ ] Sáng tạo thêm tính năng thú vị khi cần
+- [ ] Cần gì ghi thêm vô đây 2 con chó ơi
