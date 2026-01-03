@@ -23,7 +23,7 @@ window = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Flappy Bird!")
 
 
-# Load background texture
+# Load background texturea
 background = pygame.image.load(texture_path + r"\background.png")
 background = pygame.transform.scale(background, (WIDTH, HEIGHT))
 
@@ -40,10 +40,12 @@ hardTexture = pygame.image.load(texture_path + r"\hard.png")
 
 bookTexture = pygame.image.load(texture_path + r"\book.png")
 shopTexture = pygame.image.load(texture_path + r"\shop.png")
+coinTexture = pygame.image.load(texture_path + r"\coin.png")
+
 
 loginUI = pygame.image.load(texture_path + r"\loginUI.png")
 placeHolder = pygame.image.load(texture_path + r"\nameinputplaceholder.png")
-
+fcursor = pygame.image.load(texture_path + r"\cursor.png")
 
 
 
@@ -54,6 +56,8 @@ tutorialTexture = pygame.image.load(texture_path + r"\tutorial.png")
 
 font = pygame.font.Font(str(current_dir+"\Fonts\Minecraft.ttf"), 36)
 cmsFont = pygame.font.Font(str(current_dir+"\Fonts\COMIC.TTF"),58)
+ScmsFont = pygame.font.Font(str(current_dir+"\Fonts\COMIC.TTF"),36)
+
 
 
 score_position_x = WIDTH/2
@@ -73,15 +77,14 @@ class Bird(pygame.sprite.Sprite):
         this.rect.x = WIDTH // 2 - 300                                        # đặt bird lệch về góc trái so với tâm window
 
         # Bird physics
-        this.gravityForce = 9.9
-    
+        this.gravityForce = 7
         this.isJumping = False
         this.isFalling = False
         this.jumpForce = -800
-        this.jumpForceCap = -50
+        this.jumpForceCap = -10
         this.jumpedHeight = 0
         this.jumpHeightCap = 75
-        this.fallVelocity = 0.66667
+        this.fallVelocity = 0.33333
         this.fallVelocityCap = 20
 
         this.isHovering = False
@@ -174,7 +177,7 @@ class Bird(pygame.sprite.Sprite):
         this.jumpForceCap = -50
         this.jumpedHeight = 0
         this.jumpHeightCap = 75
-        this.fallVelocity = 0.66667/8
+        this.fallVelocity = 0.66667
         this.fallVelocityCap = 20
         this.deltaTime = 0
 
@@ -204,7 +207,7 @@ class PairOfPipes():
         this.iniPhase = random.randint(4,7)*100 + random.randint(2,3)*10 + random.randint(-2,2)*20
         this.appliedScore = False
 
-        this.distance = 150
+        this.distance = 175
         this.t = Pipe()
         this.b = Pipe()
 
@@ -217,7 +220,7 @@ class PairOfPipes():
 
         this.deltaTime = 0
         this.timeCounter = 0
-        this.velocity = 125/2
+        this.velocity = 125
 
         this.placeTheMatchingTopPipe()
         
@@ -293,7 +296,7 @@ class Buttons(IntEnum):
     Medium = 1
     Hard = 2
     Tutorial = 3
-    Shop = 4
+    Shop = 4 
     Nonee = 5
 
 class MainGame():
@@ -302,18 +305,19 @@ class MainGame():
         this.restart() # tai tao attributes
         this.State = State.selectingButtons
 #Game loop
-    def update(this, keys, deltaTime,events):
+    def update(this, keys, deltaTime):
         
         this.keys = keys
         this.deltaTime = deltaTime
 
     #Select Difficulty
-        if(this.State == State.isLoggingin):
+        if(this.State == State.selectingButtons):
             this.login(keys)
         if(this.State == State.selectingButtons):
             this.selectButtons()
     #Running
         if(this.State == State.isRunning):
+            this.timeElapsed += deltaTime
         #Easy 
             if(this.selectedButton == Buttons.Easy):
                 for pipe in this.pops:
@@ -335,8 +339,20 @@ class MainGame():
 
 
 
+                # print(this.timeElapsed)
 
-
+                if(int(this.timeElapsed) > this.themomentThatCoinsCanAppear):
+                    if(int(this.timeElapsed) % this.coinAppearPeriod ==0):
+                        if(this.coin.isCollected):
+                            this.coin.refresh()
+                        this.coin.trigger()
+                    
+                this.coin.update(this.bird,this.deltaTime)
+                if(not this.coin.isCollected and not this.coin.isDrawable):
+                    this.collectedCoins +=1
+                    this.coin.isCollected = True
+                # print(int(this.timeElapsed))
+                # print(this.collectedCoins)
                 this.checkScore()
                 #SCORE HERE ------------------------------------------
                 #SCORE HERE ------------------------------------------
@@ -347,17 +363,6 @@ class MainGame():
                 #SCORE HERE ------------------------------------------
                 if(this.birdCollided()):
                     this.State = State.isOver       
-                
-            # Draw background
-            window.blit(background, (0, 0))
-
-            # Draw pipes and bird
-            for pipe in this.pops:
-                pipe.draw(window)
-            # this.p3.draw(window)
-            window.blit(this.score_text,(score_position_x,score_position_y))
-            window.blit(this.bird.texture, (this.bird.rect.x, this.bird.rect.y))
-
         #Medium
             if(this.selectedButton == Buttons.Medium):
                 for pipe in this.pops:
@@ -386,7 +391,17 @@ class MainGame():
 
                 if(this.birdCollided()):
                     this.State = State.isOver
+            # Draw background
+            window.blit(background, (0, 0))
 
+            # Draw pipes and bird
+            for pipe in this.pops:
+                pipe.draw(window)
+            # this.p3.draw(window)
+            window.blit(this.score_text,(score_position_x,score_position_y))
+            window.blit(this.bird.texture, (this.bird.rect.x, this.bird.rect.y))
+            if(this.coin.isDrawable):
+                window.blit(this.coin.Texture,(this.coin.rect.x,this.coin.rect.y))
         #Hard
             if(this.selectedButton == Buttons.Hard):
                 for pipe in this.pops:
@@ -412,10 +427,12 @@ class MainGame():
     #Game over    
         if(this.State == State.isOver):
             window.blit(this.overTexture,(WIDTH/2-225/2,HEIGHT/4))
-            if(this.keys[pygame.K_SPACE] and not this.preKeys[pygame.K_SPACE]):
-                print("restarted!")
+            game.saveData()
+
+            if(this.keys[pygame.K_r] and not this.preKeys[pygame.K_r]):
                 this.restart()
 
+        # print(this.coins)
         this.preKeys = keys
 
     def birdCollided(this):
@@ -437,7 +454,12 @@ class MainGame():
         
 #Refresh the game's attributes  
     def restart(this):
-        this.popGap = 300
+        with open('data.json', 'r') as json_file:
+            loaded_data = json.load(json_file)
+        this.coins = loaded_data["coins"]
+        this.collectedCoins = 0
+
+        this.popGap = (WIDTH - 4*pipeTexture.get_width())/(4-1)
 #Game set up
         this.State = State.selectingButtons# 1 state at a time
         this.selectedButton = Buttons.Nonee  
@@ -465,6 +487,13 @@ class MainGame():
 #Score
         this.score = 0
         this.score_text = font.render(str(this.score), True, (255, 255, 255))
+#Coin
+        this.coin = Coin()
+        this.themomentThatCoinsCanAppear = 8
+        this.coinAppearPeriod = 32
+        
+        # this.coin.refresh()
+
 #Game button
         this.EasyButton = Button(easyTexture,200)
         this.MediumButoon = Button(mediumTexture,325)
@@ -487,6 +516,9 @@ class MainGame():
 
         this.LoginUI = LoginUI()
         this.UserNamePlaceHolder = userNamePlaceHolder(this.LoginUI)
+
+        this.timeElapsed = 0
+        this.savedData = False
 
 #Game logic attributes
         this.keys = []
@@ -534,7 +566,17 @@ class MainGame():
         window.blit(this.UserNamePlaceHolder.Texture,(this.UserNamePlaceHolder.rect.x,this.UserNamePlaceHolder.rect.y))
 
         this.UserNamePlaceHolder.update(events)
+    def saveData(this):
 
+        user_data = {
+            "username": "sleep",
+            "score": 10,
+            "coins": this.coins + this.collectedCoins,
+        }
+        
+        with open('data.json', 'w') as json_file:
+            json.dump(user_data, json_file, indent=4)
+        this.savedData = True
 
 class Button(pygame.sprite.Sprite):
         def __init__(this, Texture,offset):
@@ -558,42 +600,143 @@ class userNamePlaceHolder(pygame.sprite.Sprite):
             this.rect.y = container.Texture.get_height()/2 - this.Texture.get_height()/2 + 50
             this.username = ""
             this.sequence = ""
+            this.subUsername = ""
             this.char =''
+            this.displacement = 0
             this.keys =[]
             this.preKeys = []
             this.isActing = False
+            this.maxLength = 12
+            this.fcursor = flickeringCursor()
+            this.currentLength_text = ScmsFont.render(str(this.maxLength-len(this.username)), True, (28, 25, 16))
+
+
         def update(this, keys):
             this.keys = keys
-            if(this.isClicked(keys)):
-                this.isActing = True
+
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
-                if event.type == pygame.KEYDOWN: 
-                    this.char = event.unicode
-                    this.username += this.char
-            if(this.keys[pygame.K_BACKSPACE] and not this.preKeys[pygame.K_BACKSPACE]):
-                if len(this.username) >0:
-                    this.username = this.username[:-1]
-                if len(this.username) >0:
-                    this.username = this.username[:-1]
-                
+                #to act is to be clicked
+                if (event.type == pygame.MOUSEBUTTONDOWN):
+                    this.isActing = this.isClicked(event)
+                #acting 
+                if(this.isActing):
+                    if event.type == pygame.KEYDOWN:
+                        this.read_key(event)
+            if(this.isActing):    
+                this.delete_key()
+                this.move_fcursor()
+                this.update_fcursor()
+
             this.sequence = cmsFont.render(str(this.username), True, (28, 25, 16))
+            this.currentLength_text = ScmsFont.render(str(this.maxLength-len(this.username)), True, (28, 25, 16))
+
             window.blit(this.sequence,(this.rect.x + 30,this.rect.y+5))
 
+            text_width, text_height = ScmsFont.size(str(len(this.username))) 
+            window.blit(this.currentLength_text,(this.rect.x +this.Texture.get_width() - 50,this.rect.y+text_height/2))
+            if(this.fcursor.drawable and this.isActing):
+                window.blit(this.fcursor.Texture,(this.fcursor.rect.x,this.fcursor.rect.y))
             this.preKeys = keys
-        def isClicked(this,keys):
-            return(keys[pygame.K_RETURN] and this.isActing == False)
+            # print(this.isActing)
+        def isClicked(this,event):
+            if event.button == 1: # 1 is Left Click
+                if(this.rect.collidepoint(event.pos)):
+                    return True
+                else:
+                    return False
+        def read_key(this,event):
+            if(event.unicode != "\x08" and len(this.username) < this.maxLength):        #"\x08" la phim backspace, 12 la do dai toi da cua username
+                this.char = event.unicode
+                this.username = this.username[:len(this.username)-this.displacement] + this.char + this.username[len(this.username)-1-this.displacement+1:]
+        def delete_key(this):
+            if(this.keys[pygame.K_BACKSPACE] and not this.preKeys[pygame.K_BACKSPACE]):
+                if len(this.username) >0 and this.displacement != len(this.username):
+                    this.username = this.username[:(len(this.username)-1-this.displacement)] + this.username[len(this.username)-1-this.displacement+1:] #xoa 1 ki tu tai vi tri fcursor 
+        def move_fcursor(this):
+            if(this.keys[pygame.K_LEFT] and not this.preKeys[pygame.K_LEFT]):
+                this.displacement +=1
+                if(this.displacement > len(this.username)):
+                    this.displacement = len(this.username)
+            if(this.keys[pygame.K_RIGHT] and not this.preKeys[pygame.K_RIGHT]):
+                this.displacement +=-1
+                if(this.displacement <0):
+                    this.displacement = 0
+        def update_fcursor(this):
+            if(this.displacement != 0):
+                this.fcursor.update(this.rect,this.username[:-this.displacement])
+            else: 
+                this.fcursor.update(this.rect,this.username[:])
+class flickeringCursor(pygame.sprite.Sprite):
+    def __init__(this):
+        this.Texture = fcursor
+        this.rect = fcursor.get_rect()
+        this.drawable = True
+    def update(this,owners_rect,owners_sequence):
+        text_width, text_height = cmsFont.size(owners_sequence)   # tra ve 1 tuple :kich thuoc (w,h) cua string voi font cms
+        this.rect.y = owners_rect.y + 15
+        this.rect.x = owners_rect.x + 30 + text_width
+        #logic cho cursor nhap nhay
+        this.flicker()
+    def flicker(this):
+        #for every 0.5s
+        timeElapsed = float(pygame.time.get_ticks()/1000) #tra ve thoi gian ke tu pygame.init() doi ms -> s
+        if(2*(math.floor(timeElapsed*2)/2)  == math.floor(timeElapsed)*2 + 1):
+            this.drawable = True
+        else:
+            this.drawable = False
+class Coin(pygame.sprite.Sprite):
+    def __init__(this):
+        this.Texture = coinTexture
+        this.rect = this.Texture.get_rect()
+        this.isCollected = False
+        this.isDrawable = True
+        this.velocity = 250
+        this.deltaTime = 0
+        this.iniPos_y = 0
+        this.rect.x = WIDTH + 100
+        this.defineDir = False
+        this.isActing = False
+    def update(this,bird,deltaTime):
+        if(this.isActing):
+            if(not this.defineDir):
+                this.setIniPos_y()
+            this.deltaTime = deltaTime
+            this.move()
+            this.Collide(bird)
         
-        
+    def Collide(this,bird):
+        if(bird.rect.colliderect(this.rect)):
+            this.isDrawable = False
+    def move(this):
+        this.rect.y = this.iniPos_y
+        this.rect.x -= this.velocity*this.deltaTime
+    def refresh(this):
+        this.rect.x = WIDTH + 100
+        this.isCollected = False
+        this.isDrawable = True
+        this.defineDir = False
+        this.isActing = False
+    def setIniPos_y(this):
+        this.iniPos_y = random.randint(4,7)*100 + random.randint(2,3)*10 + random.randint(-2,2)*20
+        this.defineDir = True
+    def trigger(this):
+        if(not this.isActing):
+            this.isActing = True
 
-# Initialize the game
+# Initialize the game    
 game = MainGame()
 
 # Game loop
 def main():
     # print(texture_path)
+    
+
+# Writing the data to 'data.json'
+    
+
     deltaTime = clock.tick(60) / 1000.0
 
     while True:
@@ -605,7 +748,7 @@ def main():
                 sys.exit()
 
         # Update sprites
-        game.update(pygame.key.get_pressed(), deltaTime,pygame.event.get())
+        game.update(pygame.key.get_pressed(), deltaTime)
 
         # Refresh the screen
         pygame.display.flip()
