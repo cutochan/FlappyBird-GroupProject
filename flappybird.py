@@ -73,7 +73,8 @@ class Bird(pygame.sprite.Sprite):
         this.rect.x = WIDTH // 2 - 300                                        # đặt bird lệch về góc trái so với tâm window
 
         # Bird physics
-        this.gravityForce = 9.8
+        this.gravityForce = 9.9
+    
         this.isJumping = False
         this.isFalling = False
         this.jumpForce = -800
