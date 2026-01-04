@@ -41,7 +41,12 @@ hardTexture = pygame.image.load(texture_path + r"\hard.png")
 bookTexture = pygame.image.load(texture_path + r"\book.png")
 shopTexture = pygame.image.load(texture_path + r"\shop.png")
 coinTexture = pygame.image.load(texture_path + r"\coin.png")
-
+heartTexture = pygame.image.load(texture_path + r"\heart.png")
+heartTexture = pygame.transform.scale(heartTexture, (32, 32))
+enemyTexture = pygame.image.load(texture_path + r"\enemy.png")
+enemyTexture = pygame.transform.scale(enemyTexture, (40, 40))
+enemyBulletTexture = pygame.image.load(texture_path + r"\enemy_bullet.png")
+enemyBulletTexture = pygame.transform.scale(enemyBulletTexture, (23, 11))
 
 loginUI = pygame.image.load(texture_path + r"\loginUI.png")
 placeHolder = pygame.image.load(texture_path + r"\nameinputplaceholder.png")
@@ -118,6 +123,9 @@ class Bird(pygame.sprite.Sprite):
         old_center = this.rect.center
         this.rect = this.texture.get_rect()
         this.rect.center = old_center
+        # ===== EASY HITBOX =====
+        if hasattr(this, "easyHitbox") and this.easyHitbox:
+            this.rect.inflate_ip(-20, -20)
 
         # Keep the bird inside the window
         this.rect.clamp_ip(window.get_rect())
@@ -206,6 +214,7 @@ class PairOfPipes():
         this.iniPos = iniPos
         this.iniPhase = random.randint(4,7)*100 + random.randint(2,3)*10 + random.randint(-2,2)*20
         this.appliedScore = False
+        this.enemyChecked = False
 
         this.distance = 175
         this.t = Pipe()
@@ -272,7 +281,7 @@ class PairOfPipes():
         window.blit(this.b.texture, this.b.rect)
     def refresh(this,iniPhase):
         this.appliedScore = False
-        
+        this.enemyChecked = False
         this.b.rect.x = WIDTH 
         this.t.rect.x = WIDTH
         this.b.rect.y = iniPhase 
@@ -298,6 +307,40 @@ class Buttons(IntEnum):
     Tutorial = 3
     Shop = 4 
     Nonee = 5
+def applyEasyLogic(game, keys, deltaTime):
+    game.bird.gravityForce = 4.5
+    game.bird.jumpForceCap = -8
+    game.bird.fallVelocityCap = 14
+
+    for pipe in game.pops:
+        pipe.distance = 260
+        pipe.velocity = 95
+
+    if game.invincibleTime > 0:
+        game.invincibleTime -= deltaTime
+
+    if game.invincibleTime <= 0 and game.birdCollided():
+            game.hp -= 1
+            game.invincibleTime = 2
+            if game.hp <= 0:
+                game.State = State.isOver
+# ===== EASY ENEMY SPAWN 
+    for i, pipe in enumerate(game.pops):
+        if not hasattr(pipe, "enemyChecked"):
+            pipe.enemyChecked = False
+        # chỉ đếm khi ống vừa xuất hiện ở mép phải
+        if WIDTH - 5 < pipe.t.rect.x < WIDTH and not pipe.enemyChecked:
+            pipe.enemyChecked = True
+            game.pipeCounter += 1
+
+            # Random xác suất spawn Enemy (70%)
+            if random.random() < 0.6:
+            # Tìm Enemy inactive đầu tiên để spawn
+                for enemy in game.enemies:
+                    if not enemy.active:
+                        enemy.spawn(pipe)
+                        break
+
 
 class MainGame():
     
@@ -320,6 +363,7 @@ class MainGame():
             this.timeElapsed += deltaTime
         #Easy 
             if(this.selectedButton == Buttons.Easy):
+                this.bird.easyHitbox = True
                 for pipe in this.pops:
                     pipe.EasyUpdate(keys,this.deltaTime)                   #Nếu muốn có thể thay đổi logic các ống ở hàm này
                 # this.p3.update(keys, deltaTime)
@@ -329,42 +373,54 @@ class MainGame():
                         # hàm update() phải có biến:
                         # keys: list các phím ấn từ bàn phím
                         #this.deltaTime: là thời gian trôi qua của mỗi vòng lặp
+                applyEasyLogic(this, keys, this.deltaTime)
+                # ===== ENEMY UPDATE + COLLISION =====
+                for enemy in this.enemies:
+                    enemy.update(this.pops[0].velocity, this.deltaTime)
 
+                    if enemy.collide(this.bird) and this.invincibleTime <= 0:
+                        this.hp -= 1
+                        this.invincibleTime = 2
+                        enemy.active = False
 
+                        if this.hp <= 0:
+                            this.State = State.isOver
+                    # ===== BULLET COLLISION (EASY ONLY) =====
+                    if enemy.bullet.collide(this.bird) and this.invincibleTime <= 0:
+                        this.hp -= 1
+                        this.invincibleTime = 2
+                        enemy.bullet.active = False
 
-
-
-
-
-
-
-
-                # print(this.timeElapsed)
-
+                        if this.hp <= 0:
+                            this.State = State.isOver
+                # ===== COIN LOGIC =====
                 if(int(this.timeElapsed) > this.themomentThatCoinsCanAppear):
                     if(int(this.timeElapsed) % this.coinAppearPeriod ==0):
                         if(this.coin.isCollected):
                             this.coin.refresh()
                         this.coin.trigger()
-                    
-                this.coin.update(this.bird,this.deltaTime)
+                        
+                this.coin.update(this.bird, this.deltaTime)
                 if(not this.coin.isCollected and not this.coin.isDrawable):
                     this.collectedCoins +=1
                     this.coin.isCollected = True
-                # print(int(this.timeElapsed))
-                # print(this.collectedCoins)
                 this.checkScore()
-                #SCORE HERE ------------------------------------------
-                #SCORE HERE ------------------------------------------
-                #SCORE HERE ------------------------------------------
-                this.score_text = font.render(str(this.score), True, (255, 255, 255)) #SCORE HERE ------------------------------------------
-                #SCORE HERE ------------------------------------------
-                #SCORE HERE ------------------------------------------
-                #SCORE HERE ------------------------------------------
-                if(this.birdCollided()):
-                    this.State = State.isOver       
+                this.score_text = font.render(str(this.score), True, (255, 255, 255))
+
+
+
+
+
+
+
+
+
+
+       
+    
         #Medium
             if(this.selectedButton == Buttons.Medium):
+                this.bird.easyHitbox = False
                 for pipe in this.pops:
                     pipe.MediumUpdate(keys,this.deltaTime)
                 # this.p3.update(keys, deltaTime)
@@ -397,13 +453,28 @@ class MainGame():
             # Draw pipes and bird
             for pipe in this.pops:
                 pipe.draw(window)
+            for enemy in this.enemies:
+                enemy.draw(window)
             # this.p3.draw(window)
             window.blit(this.score_text,(score_position_x,score_position_y))
-            window.blit(this.bird.texture, (this.bird.rect.x, this.bird.rect.y))
+            if this.selectedButton == Buttons.Easy:
+                for i in range(this.hp):
+                    window.blit(heartTexture, (30 + i * 40, 30))
+            #window.blit(this.bird.texture, (this.bird.rect.x, this.bird.rect.y))
+            if this.selectedButton == Buttons.Easy:
+                if this.invincibleTime > 0:
+                    if int(pygame.time.get_ticks() / 100) % 2 == 0:
+                        window.blit(this.bird.texture, this.bird.rect)
+                else:
+                        window.blit(this.bird.texture, this.bird.rect)
+            else:
+                window.blit(this.bird.texture, this.bird.rect)
+            # ===== COIN DRAWING =====
             if(this.coin.isDrawable):
                 window.blit(this.coin.Texture,(this.coin.rect.x,this.coin.rect.y))
         #Hard
             if(this.selectedButton == Buttons.Hard):
+                this.bird.easyHitbox = False
                 for pipe in this.pops:
                     pipe.HardUpdate(keys,this.deltaTime)
                 # this.p3.update(keys, deltaTime)
@@ -526,6 +597,15 @@ class MainGame():
         this.deltaTime = 0
 
         this.started = False
+        # ===== EASY ONLY =====
+        this.hp = 3
+        this.invincibleTime = 0
+        # ===== EASY ENEMY =====
+        this.enemies = [Enemy() for _ in range(4)]
+         # ===== EASY ENEMY SPAWN CONTROL =====
+        this.pipeCounter = 0
+        this.nextEnemySpawn = random.choice([1, 3, 5])
+
     def selectButtons(this):
         window.blit(background, (0, 0))
 
@@ -725,6 +805,78 @@ class Coin(pygame.sprite.Sprite):
     def trigger(this):
         if(not this.isActing):
             this.isActing = True
+class Enemy(pygame.sprite.Sprite):
+    def __init__(this):
+        this.Texture = enemyTexture
+        this.rect = this.Texture.get_rect()
+
+        this.active = False
+        this.hitbox = pygame.Rect(0, 0, 18, 18)  # HITBOX NHỎ
+        this.bullet = Bullet()
+        this.shootCooldown = random.uniform(1.2, 2.2)
+        this.shootTimer = 0
+
+    def spawn(this, pipe):
+        this.active = True
+        this.rect.centerx = pipe.b.rect.x + pipe.b.texture.get_width() // 2
+        # random sát ống trên hoặc dưới
+        if random.choice([True, False]):
+            # sát miệng ống trên
+            this.rect.y = pipe.t.rect.bottom + 6
+        else:
+            # sát miệng ống dưới
+            this.rect.y = pipe.b.rect.top - this.rect.height - 6
+    def update(this, velocity, deltaTime):
+        if not this.active:
+            return
+
+        this.rect.x -= velocity * deltaTime
+        this.hitbox.center = this.rect.center
+
+        # ===== SHOOT BULLET =====
+        this.shootTimer += deltaTime
+        if this.shootTimer >= this.shootCooldown:
+            this.shootTimer = 0
+            this.shootCooldown = random.uniform(1.2, 2.2)
+            this.bullet.spawn(this.rect.left, this.rect.centery)
+
+        this.bullet.update(deltaTime)
+
+        if this.rect.right < 0:
+             this.active = False
+
+
+    def draw(this, window):
+        if this.active:
+            window.blit(this.Texture, this.rect)
+            this.bullet.draw(window)
+    def collide(this, bird):
+        return this.active and this.hitbox.colliderect(bird.rect)
+class Bullet(pygame.sprite.Sprite):
+    def __init__(this):
+        this.Texture = enemyBulletTexture
+        this.rect = this.Texture.get_rect()
+        this.rect = pygame.Rect(0, 0, 10, 4)
+        this.speed = 400
+        this.active = False
+
+    def spawn(this, x, y):
+        this.rect.x = x
+        this.rect.y = y
+        this.active = True
+
+    def update(this, deltaTime):
+        if not this.active:
+            return
+        this.rect.x -= this.speed * deltaTime
+        if this.rect.right < 0:
+            this.active = False
+
+    def draw(this, window):
+        if this.active:
+            window.blit(this.Texture, this.rect)
+    def collide(this, bird):
+        return this.active and this.rect.colliderect(bird.rect)
 
 # Initialize the game    
 game = MainGame()
