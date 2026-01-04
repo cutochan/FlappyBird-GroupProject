@@ -16,6 +16,18 @@ texture_path = str(current_dir + "\\Assets")
 
 # Initialize Pygame
 pygame.init()
+# Khởi tạo âm thanh
+pygame.mixer.init()  # Bắt đầu hệ thống âm thanh
+
+# Load nhạc nền
+pygame.mixer.music.load(texture_path + r"\background_music.ogg")  # đặt file nhạc vào Assets
+pygame.mixer.music.set_volume(0.3)  # âm lượng nhạc nền
+pygame.mixer.music.play(-1)  # -1 để loop vô hạn
+
+# Window settings
+WIDTH, HEIGHT = 1000, 1000
+window = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Flappy Bird!")
 
 # Window settings
 WIDTH, HEIGHT = 1000, 1000
