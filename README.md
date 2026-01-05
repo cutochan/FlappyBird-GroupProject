@@ -1,7 +1,7 @@
 ## 📌 Todo List
 
-- [ ] Easy mode  
-- [ ] Medium mode  
+- [X] Easy mode  
+- [X] Medium mode  
 - [ ] Score (lưu theo từng username, định dạng JSON)  
 - [ ] Coins (tiền, lưu theo từng username, định dạng JSON)  
 - [ ] Shop skin  
