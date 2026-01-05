@@ -28,11 +28,10 @@ pygame.mixer.music.play(-1)  # -1 để loop vô hạn
 WIDTH, HEIGHT = 1000, 1000
 window = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Flappy Bird!")
-
-# Window settings
-WIDTH, HEIGHT = 1000, 1000
-window = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Flappy Bird!")
+# ===== BLUR OVERLAY (MEDIUM EFFECT) =====
+blurOverlay = pygame.Surface((WIDTH, HEIGHT))
+blurOverlay.set_alpha(120)   # 0 = trong suốt, 255 = đen đặc
+blurOverlay.fill((50, 50, 50))
 
 
 # Load background texturea
@@ -95,6 +94,7 @@ class Bird(pygame.sprite.Sprite):
 
         # Bird physics
         this.gravityForce = 7
+        # ==
         this.isJumping = False
         this.isFalling = False
         this.jumpForce = -800
@@ -141,7 +141,7 @@ class Bird(pygame.sprite.Sprite):
 
         # Keep the bird inside the window
         this.rect.clamp_ip(window.get_rect())
-
+       
         this.preKeys = this.keys
 
     def applyGravity(this):
@@ -153,9 +153,11 @@ class Bird(pygame.sprite.Sprite):
             this.rect.y += float(this.fallVelocity)
 
     def jump(this):
-        if (this.jumpable()==True) and (this.isJumping==False) :
+        if this.jumpable() and not this.isJumping:
+        
             this.isJumping = True
             this.jumpedHeight = 0
+
 
         if this.isJumping:
             
@@ -170,7 +172,10 @@ class Bird(pygame.sprite.Sprite):
                 this.jumpForce = -800
                 this.fallVelocity = 0.66667
     def jumpable(this):
-        if(this.keys[pygame.K_SPACE] and not this.preKeys[pygame.K_SPACE]): #Đảm bảo phím space phải được ấn liên tục không giữ
+        jump_key = pygame.K_SPACE
+
+
+        if(this.keys[jump_key] and not this.preKeys[jump_key]): #Đảm bảo phím space phải được ấn liên tục không giữ
             return True
         return False
     def hover(this):
@@ -386,11 +391,7 @@ def applyMediumLogic(game, keys, deltaTime):
     if game.invincibleTime > 0:
         game.invincibleTime -= deltaTime
 
-    if game.invincibleTime <= 0 and game.birdCollided():
-        game.hp -= 1
-        game.invincibleTime = 2
-        if game.hp <= 0:
-            game.State = State.isOver
+   
 
     # Enemy spawn
     for i, pipe in enumerate(game.pops):
@@ -405,21 +406,23 @@ def applyMediumLogic(game, keys, deltaTime):
                         enemy.spawn(pipe)
                         break
 
-    # Enemy And Bullet Colidide
+    # ===== ENEMY UPDATE + COLLISION (MEDIUM) =====
     for enemy in game.enemies:
         enemy.update(game.pops[0].velocity, deltaTime)
 
-        if enemy.collide(game.bird) and game.invincibleTime <= 0:
-            game.hp -= 1
-            game.invincibleTime = 2
+        # Chim đụng enemy → KHÔNG MẤT MÁU, CHỈ RUNG MÀN
+        if enemy.collide(game.bird):
             enemy.active = False
-            if game.hp <= 0:
-                game.State = State.isOver
-        # Bullet collide
+
+            game.screenShakeTimer = 0.6
+            game.screenShakeIntensity = 18
+
+        # Bullet vẫn gây damage
         if enemy.bullet.collide(game.bird) and game.invincibleTime <= 0:
             game.hp -= 1
             game.invincibleTime = 2
             enemy.bullet.active = False
+
             if game.hp <= 0:
                 game.State = State.isOver
 
@@ -534,6 +537,15 @@ class MainGame():
                 this.bird.update(keys, this.deltaTime)
                  # Áp dụng logic Medium (ống dao động lên/xuống, enemy, coin gắn ống)
                 applyMediumLogic(this, keys, this.deltaTime)
+                if this.birdCollided() and this.invincibleTime <= 0:
+                    this.hp -= 2
+                    this.invincibleTime = 2
+
+                    this.screenShakeTimer = 1
+                    this.screenShakeIntensity = 55
+
+                    if this.hp <= 0:
+                        this.State = State.isOver
 
 
 
@@ -549,10 +561,18 @@ class MainGame():
                 this.checkScore()
                 this.score_text = font.render(str(this.score), True, (255, 255, 255))
 
-                if(this.birdCollided()):
-                    this.State = State.isOver
-            # Draw background
-            window.blit(background, (0, 0))
+                
+            # ===== SCREEN SHAKE UPDATE (MEDIUM ONLY) =====
+            shake_x = 0
+            shake_y = 0
+
+            if this.selectedButton == Buttons.Medium and this.screenShakeTimer > 0:
+                this.screenShakeTimer -= this.deltaTime
+                shake_x = random.randint(-this.screenShakeIntensity, this.screenShakeIntensity)
+                shake_y = random.randint(-this.screenShakeIntensity, this.screenShakeIntensity)
+
+            # Draw background (with shake)
+            window.blit(background, (shake_x, shake_y))
 
             # Draw pipes and bird
             for pipe in this.pops:
@@ -635,6 +655,7 @@ class MainGame():
         this.collectedCoins = 0
 
         this.popGap = (WIDTH - 4*pipeTexture.get_width())/(4-1)
+        
 #Game set up
         this.State = State.selectingButtons# 1 state at a time
         this.selectedButton = Buttons.Nonee  
@@ -706,6 +727,9 @@ class MainGame():
         # ===== EASY ONLY =====
         this.hp = 3
         this.invincibleTime = 0
+        # ===== MEDIUM SCREEN SHAKE =====
+        this.screenShakeTimer = 0
+        this.screenShakeIntensity = 0
         # ===== EASY ENEMY =====
         this.enemies = [Enemy() for _ in range(4)]
          # ===== EASY ENEMY SPAWN CONTROL =====
@@ -1016,15 +1040,14 @@ game = MainGame()
 # Game loop
 def main():
     # print(texture_path)
-    
+    clock = pygame.time.Clock()
 
 # Writing the data to 'data.json'
     
 
-    deltaTime = clock.tick(60) / 1000.0
 
     while True:
-        clock.tick(120)  # 120 FPS
+        deltaTime = clock.tick(120) / 1000.0
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
