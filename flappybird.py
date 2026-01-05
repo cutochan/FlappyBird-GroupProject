@@ -430,17 +430,13 @@ class MainGame():
         this.State = State.isRunning
         this.playerData = {
             "username": "",
-            "score":{
-                "easy":0,
-                "medium":0,
-                "hard":0
-            },
+            "score": 0,
             "coins": 0,
-            "skins":{
-                "bluebird":False,
-                "redbird":False,
-                "pinkbird":False,
-                "yellowbird": True
+            "skins" :{
+                "bluebird" : False,
+                "redbird" : False,
+                "pinkbird" : False,
+                "yellowbird":True
             }
         }
         this.restart() # tai tao attributes
@@ -982,17 +978,13 @@ class Login():
     def restart(this):
         this.playerData = {
             "username": "",
-            "score":{
-                "easy":0,
-                "medium":0,
-                "hard":0
-            },
+            "score": 0,
             "coins": 0,
             "skins" :{
                 "bluebird" : False,
                 "redbird" : False,
                 "pinkbird" : False,
-                "yellowbird" : False
+                "yellowbird":True
             }
         }
         this.chosenOptions = LoginOptions.Nonee
@@ -1088,11 +1080,7 @@ class Login():
         print(data_path)
         newPlayer = {
             "username": this.UserNamePlaceHolder.outcome,
-            "score":{
-                "easy":0,
-                "medium":0,
-                "hard":0
-            },
+            "score": 0,
             "coins": 0,
             "skins" :{
                 "bluebird" : False,
