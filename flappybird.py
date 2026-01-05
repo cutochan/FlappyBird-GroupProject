@@ -20,7 +20,7 @@ pygame.init()
 pygame.mixer.init()  # Bắt đầu hệ thống âm thanh
 
 # Load nhạc nền
-pygame.mixer.music.load(texture_path + r"\background_music.ogg")  # đặt file nhạc vào Assets
+pygame.mixer.music.load(texture_path + r"\background_music2.mp3")  # đặt file nhạc vào Assets
 pygame.mixer.music.set_volume(0.3)  # âm lượng nhạc nền
 pygame.mixer.music.play(-1)  # -1 để loop vô hạn
 
