@@ -235,6 +235,10 @@ class PairOfPipes():
         this.b.rect.x = WIDTH + this.iniPos
         this.t.rect.x = WIDTH + this.iniPos
         this.b.rect.y = this.iniPhase
+        # Attri moving Pipe
+        this.base_b_y = this.b.rect.y  # baseline Y cho dao động Medium
+        this.medium_vertical_amplitude = 40.0  # pixel lên/xuống
+        this.medium_vertical_speed = 1.5       # tốc độ dao động (rad/s)
 
         this.t.texture = pygame.transform.flip(this.t.texture, False, True) #flip the top pipe
 
@@ -279,6 +283,8 @@ class PairOfPipes():
     def MediumMove(this):
         this.t.rect.x -= float(this.velocity * this.deltaTime)
         this.b.rect.x -= float(this.velocity * this.deltaTime)
+        # Dao động trơn lên xuống - ống di chuyển theo sin wave
+        this.b.rect.y = int(this.base_b_y + this.medium_vertical_amplitude * math.sin(this.timeCounter * this.medium_vertical_speed))
         this.placeTheMatchingTopPipe()
     def HardMove(this):
         this.t.rect.x -= float(this.velocity * this.deltaTime)
@@ -297,6 +303,7 @@ class PairOfPipes():
         this.b.rect.x = WIDTH 
         this.t.rect.x = WIDTH
         this.b.rect.y = iniPhase 
+        this.base_b_y = this.b.rect.y  # reset baseline
 
         this.placeTheMatchingTopPipe()
     
@@ -352,6 +359,87 @@ def applyEasyLogic(game, keys, deltaTime):
                     if not enemy.active:
                         enemy.spawn(pipe)
                         break
+
+
+def applyMediumLogic(game, keys, deltaTime):
+    """Logic độ khó Medium: ống dao động, enemy, coin gắn ống"""
+    # Attri
+    MED_VERTICAL_AMPLITUDE = 40.0  # pixel lên/xuống (tăng = khó hơn)
+    MED_VERTICAL_SPEED = 1.5       # tốc độ dao động rad/s
+    MED_PIPE_VELOCITY = 110        # tốc độ ngang ống
+    MED_PIPE_DISTANCE = 210        # khoảng cách giữa ống
+    MED_ENEMY_SPAWN_CHANCE = 0.5   # xác suất spawn enemy
+
+    # Bird Attri
+    game.bird.gravityForce = 6.5
+    game.bird.jumpForceCap = -12
+    game.bird.fallVelocityCap = 16
+
+    # Pipe attri
+    for pipe in game.pops:
+        pipe.distance = MED_PIPE_DISTANCE
+        pipe.velocity = MED_PIPE_VELOCITY
+        pipe.medium_vertical_amplitude = getattr(pipe, "medium_vertical_amplitude", MED_VERTICAL_AMPLITUDE)
+        pipe.medium_vertical_speed = getattr(pipe, "medium_vertical_speed", MED_VERTICAL_SPEED)
+
+    # invc
+    if game.invincibleTime > 0:
+        game.invincibleTime -= deltaTime
+
+    if game.invincibleTime <= 0 and game.birdCollided():
+        game.hp -= 1
+        game.invincibleTime = 2
+        if game.hp <= 0:
+            game.State = State.isOver
+
+    # Enemy spawn
+    for i, pipe in enumerate(game.pops):
+        if not hasattr(pipe, "enemyChecked"):
+            pipe.enemyChecked = False
+        if WIDTH - 5 < pipe.t.rect.x < WIDTH and not pipe.enemyChecked:
+            pipe.enemyChecked = True
+            game.pipeCounter += 1
+            if random.random() < MED_ENEMY_SPAWN_CHANCE:
+                for enemy in game.enemies:
+                    if not enemy.active:
+                        enemy.spawn(pipe)
+                        break
+
+    # Enemy And Bullet Colidide
+    for enemy in game.enemies:
+        enemy.update(game.pops[0].velocity, deltaTime)
+
+        if enemy.collide(game.bird) and game.invincibleTime <= 0:
+            game.hp -= 1
+            game.invincibleTime = 2
+            enemy.active = False
+            if game.hp <= 0:
+                game.State = State.isOver
+        # Bullet collide
+        if enemy.bullet.collide(game.bird) and game.invincibleTime <= 0:
+            game.hp -= 1
+            game.invincibleTime = 2
+            enemy.bullet.active = False
+            if game.hp <= 0:
+                game.State = State.isOver
+
+    # Coin Logic
+    if int(game.timeElapsed) > game.themomentThatCoinsCanAppear:
+        if int(game.timeElapsed) % game.coinAppearPeriod == 0:
+            if game.coin.isCollected:
+                game.coin.refresh()
+            # Gắn coin vào ống để nó di chuyển theo ống
+            candidates = [p for p in game.pops if p.b.rect.x + p.b.texture.get_width() > 0]
+            if candidates:
+                chosen = random.choice(candidates)
+                offset_x = chosen.b.texture.get_width() // 2
+                offset_y = -50
+                game.coin.attach_to_pipe(chosen, offset_x, offset_y)
+
+    game.coin.update(game.bird, deltaTime)
+    if (not game.coin.isCollected and not game.coin.isDrawable):
+        game.collectedCoins += 1
+        game.coin.isCollected = True
 
 
 class MainGame():
@@ -433,15 +521,19 @@ class MainGame():
         #Medium
             if(this.selectedButton == Buttons.Medium):
                 this.bird.easyHitbox = False
+                
+                # Set HP cho Medium lần đầu tiên (2 mạng)
+                if not hasattr(this, 'mediumHpSet'):
+                    this.hp = 2 
+                    this.mediumHpSet = True
+                
                 for pipe in this.pops:
                     pipe.MediumUpdate(keys,this.deltaTime)
                 # this.p3.update(keys, deltaTime)
 
                 this.bird.update(keys, this.deltaTime)
-                 # thêm logic game bên dưới
-                        # hàm update() phải có biến:
-                        # keys: list các phím ấn từ bàn phím
-                        #this.deltaTime: là thời gian trôi qua của mỗi vòng lặp
+                 # Áp dụng logic Medium (ống dao động lên/xuống, enemy, coin gắn ống)
+                applyMediumLogic(this, keys, this.deltaTime)
 
 
 
@@ -469,11 +561,11 @@ class MainGame():
                 enemy.draw(window)
             # this.p3.draw(window)
             window.blit(this.score_text,(score_position_x,score_position_y))
-            if this.selectedButton == Buttons.Easy:
+            if this.selectedButton == Buttons.Easy or this.selectedButton == Buttons.Medium:
                 for i in range(this.hp):
                     window.blit(heartTexture, (30 + i * 40, 30))
             #window.blit(this.bird.texture, (this.bird.rect.x, this.bird.rect.y))
-            if this.selectedButton == Buttons.Easy:
+            if this.selectedButton == Buttons.Easy or this.selectedButton == Buttons.Medium:
                 if this.invincibleTime > 0:
                     if int(pygame.time.get_ticks() / 100) % 2 == 0:
                         window.blit(this.bird.texture, this.bird.rect)
@@ -546,6 +638,8 @@ class MainGame():
 #Game set up
         this.State = State.selectingButtons# 1 state at a time
         this.selectedButton = Buttons.Nonee  
+        # Reset flag Medium HP
+        this.mediumHpSet = False  
 #Game sprites
         this.bird = Bird()
 
@@ -791,13 +885,38 @@ class Coin(pygame.sprite.Sprite):
         this.rect.x = WIDTH + 100
         this.defineDir = False
         this.isActing = False
+        # Support gắn coin vào ống (Medium difficulty)
+        this.attached_pipe = None
+        this.attached_offset_x = 0
+        this.attached_offset_y = -50
+
     def update(this,bird,deltaTime):
+        # Nếu coin gắn vào ống, nó di chuyển cùng ống (lên/xuống)
+        if this.attached_pipe is not None:
+            this.rect.x = this.attached_pipe.b.rect.x + this.attached_offset_x
+            this.rect.y = this.attached_pipe.b.rect.y + this.attached_offset_y
+            this.Collide(bird)
+            # Khi ống đi ra ngoài, reset coin
+            if this.attached_pipe.b.rect.x + this.attached_pipe.b.texture.get_width() <= 0:
+                this.refresh()
+            return
+
+        # Hành vi mặc định (không gắn vào ống)
         if(this.isActing):
             if(not this.defineDir):
                 this.setIniPos_y()
             this.deltaTime = deltaTime
             this.move()
             this.Collide(bird)
+
+    def attach_to_pipe(this, pipe, offset_x=0, offset_y=-50):
+        """Gắn coin vào ống để nó di chuyển theo ống"""
+        this.attached_pipe = pipe
+        this.attached_offset_x = offset_x
+        this.attached_offset_y = offset_y
+        this.isActing = True
+        this.isCollected = False
+        this.isDrawable = True
         
     def Collide(this,bird):
         if(bird.rect.colliderect(this.rect)):
@@ -811,6 +930,7 @@ class Coin(pygame.sprite.Sprite):
         this.isDrawable = True
         this.defineDir = False
         this.isActing = False
+        this.attached_pipe = None
     def setIniPos_y(this):
         this.iniPos_y = random.randint(4,7)*100 + random.randint(2,3)*10 + random.randint(-2,2)*20
         this.defineDir = True
@@ -904,12 +1024,15 @@ def main():
     deltaTime = clock.tick(60) / 1000.0
 
     while True:
-        clock.tick(120)  # 120 FPS\
+        clock.tick(120)  # 120 FPS
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
+            # Nhấn R để restart khi Game Over
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_r and game.State == State.isOver:
+                game.restart()
 
         # Update sprites
         game.update(pygame.key.get_pressed(), deltaTime)
