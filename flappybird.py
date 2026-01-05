@@ -367,7 +367,7 @@ def applyMediumLogic(game, keys, deltaTime):
     MED_VERTICAL_AMPLITUDE = 40.0  # pixel lên/xuống (tăng = khó hơn)
     MED_VERTICAL_SPEED = 1.5       # tốc độ dao động rad/s
     MED_PIPE_VELOCITY = 110        # tốc độ ngang ống
-    MED_PIPE_DISTANCE = 210        # khoảng cách giữa ống
+    MED_PIPE_DISTANCE = 240        # khoảng cách giữa ống
     MED_ENEMY_SPAWN_CHANCE = 0.5   # xác suất spawn enemy
 
     # Bird Attri
@@ -402,7 +402,7 @@ def applyMediumLogic(game, keys, deltaTime):
             if random.random() < MED_ENEMY_SPAWN_CHANCE:
                 for enemy in game.enemies:
                     if not enemy.active:
-                        enemy.spawn(pipe)
+                        enemy.spawn(pipe)  # truyền pipe để enemy gắn vào
                         break
 
     # Enemy And Bullet Colidide
@@ -534,18 +534,6 @@ class MainGame():
                 this.bird.update(keys, this.deltaTime)
                  # Áp dụng logic Medium (ống dao động lên/xuống, enemy, coin gắn ống)
                 applyMediumLogic(this, keys, this.deltaTime)
-
-
-
-
-
-
-
-
-
-
-
-
                 this.checkScore()
                 this.score_text = font.render(str(this.score), True, (255, 255, 255))
 
@@ -947,22 +935,36 @@ class Enemy(pygame.sprite.Sprite):
         this.bullet = Bullet()
         this.shootCooldown = random.uniform(1.2, 2.2)
         this.shootTimer = 0
+        
+        # Support gắn vào ống (Medium difficulty)
+        this.attached_pipe = None
+        this.initial_y_offset = 0
 
     def spawn(this, pipe):
         this.active = True
+        this.attached_pipe = pipe
         this.rect.centerx = pipe.b.rect.x + pipe.b.texture.get_width() // 2
         # random sát ống trên hoặc dưới
         if random.choice([True, False]):
             # sát miệng ống trên
-            this.rect.y = pipe.t.rect.bottom + 6
+            this.initial_y_offset = pipe.t.rect.bottom + 6 - pipe.b.rect.y
         else:
             # sát miệng ống dưới
-            this.rect.y = pipe.b.rect.top - this.rect.height - 6
+            this.initial_y_offset = pipe.b.rect.top - this.rect.height - 6 - pipe.b.rect.y
+        this.rect.y = pipe.b.rect.y + this.initial_y_offset
     def update(this, velocity, deltaTime):
         if not this.active:
             return
 
         this.rect.x -= velocity * deltaTime
+        
+        # Nếu enemy gắn vào ống, theo dõi Y của ống (oscillation)
+        if this.attached_pipe is not None:
+            this.rect.y = this.attached_pipe.b.rect.y + this.initial_y_offset
+            # Khi ống ra ngoài màn hình, deactivate enemy
+            if this.attached_pipe.b.rect.x + this.attached_pipe.b.texture.get_width() <= 0:
+                this.active = False
+        
         this.hitbox.center = this.rect.center
 
         # ===== SHOOT BULLET =====
