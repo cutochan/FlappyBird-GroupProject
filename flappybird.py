@@ -618,7 +618,7 @@ class MainGame():
             
             if(this.DataSaved == False):
                 this.saveData()
-            this.scoreboard.update(data_path,this.score)
+            this.scoreboard.update(data_path,this.score,this.bird.originalTexture)
 
             if(this.keys[pygame.K_r] and not this.preKeys[pygame.K_r]):
                 this.restart()
@@ -1454,7 +1454,7 @@ class ScoreBoard(pygame.sprite.Sprite):
         this.rankScoreCounter = 0    # score đang đếm của rank hiện tại
         this.rankFrameCounter = 0
 
-    def update(this, playerData, score):
+    def update(this, playerData, score, profileTexture):
         # =======================
         # BACKGROUND
         # =======================
@@ -1472,7 +1472,7 @@ class ScoreBoard(pygame.sprite.Sprite):
             font.render(str(this.scoreCounter), True, (255, 255, 255)),
             (this.rect.x + 470, this.rect.y + 100)
         )
-
+        window.blit(profileTexture,(this.rect.x +110,this.rect.y+157))
         # =======================
         # LOAD TOP 3 (1 LẦN)
         # =======================
