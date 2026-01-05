@@ -89,6 +89,8 @@ enemyBulletTexture = pygame.image.load(texture_path + r"\enemy_bullet.png")
 enemyBulletTexture = pygame.transform.scale(enemyBulletTexture, (23, 11))
 
 
+scoreboardTexture = pygame.image.load(texture_path + r"\scoreboard.png")
+
 font = pygame.font.Font(str(current_dir+"\Fonts\Minecraft.ttf"), 36)
 cmsFont = pygame.font.Font(str(current_dir+"\Fonts\COMIC.TTF"),58)
 ScmsFont = pygame.font.Font(str(current_dir+"\Fonts\COMIC.TTF"),36)
@@ -612,10 +614,11 @@ class MainGame():
                 this.selectButtons()
     #Game over    
         if(this.State == State.isOver):
-            window.blit(this.overTexture,(WIDTH/2-225/2,HEIGHT/4))
+            window.blit(this.overTexture,(WIDTH/2-225/2,20))
+            
             if(this.DataSaved == False):
                 this.saveData()
-
+            this.scoreboard.update(data_path,this.score)
 
             if(this.keys[pygame.K_r] and not this.preKeys[pygame.K_r]):
                 this.restart()
@@ -642,6 +645,7 @@ class MainGame():
         
 #Refresh the game's attributes  
     def restart(this):
+        this.scoreboard = ScoreBoard(scoreboardTexture)
         this.collectedCoins = 0
         this.State = State.isRunning
         this.popGap = (WIDTH - 4*pipeTexture.get_width())/(4-1)
@@ -794,6 +798,8 @@ class MainGame():
                     if playerData["username"] == this.playerData["username"]:
                         playerData["coins"] += this.collectedCoins
                         this.playerData["coins"] += this.collectedCoins
+                        if(this.score > playerData["score"]):
+                            playerData["score"] = this.score
                         found_player = True
                         this.DataSaved = True
                     updated_lines.append(playerData)
@@ -1305,6 +1311,8 @@ class ItemContainer(pygame.sprite.Sprite):
         window.blit(this.Texture,this.rect)
         window.blit(this.item.Texture,this.item.rect)
         window.blit(this.item.symbolTextures[this.item.isOwned],this.item.symbol.rect)
+        window.blit(coinTexture,(this.rect.x + 30 ,this.rect.y + this.Texture.get_height() + 20))
+        window.blit(VScmsFont.render('x' +str(this.item.price),True,(0,0,0)),(this.rect.x  + coinTexture.get_width() + 10,this.rect.y + this.Texture.get_height() + 50 ))
     def update(this):
         this.item.placeSymbol()
         this.draw()
@@ -1321,7 +1329,7 @@ class Stall(pygame.sprite.Sprite):
         def __init__(this,Texture):
             this.Texture = Texture
             this.rect = this.Texture.get_rect()
-            this.item0 = Item(yellowbirdTexture,"yellowbird",1)
+            this.item0 = Item(yellowbirdTexture,"yellowbird",0)
             this.item1 = Item(redbirdTexture,"redbird",1)
             this.item2 = Item(bluebirdTexture,"bluebird",10)
             this.item3 = Item(pinkbirdTexture,"pinkbird",100)
@@ -1419,6 +1427,128 @@ class Stall(pygame.sprite.Sprite):
                         if found_player:
                             return True
                         return False
+
+import pygame, json
+
+import pygame, json
+
+class ScoreBoard(pygame.sprite.Sprite):
+    def __init__(this, Texture):
+        super().__init__()
+
+        this.Texture = Texture
+        this.rect = this.Texture.get_rect()
+        this.rect.x = WIDTH // 2 - this.Texture.get_width() // 2
+        this.rect.y = HEIGHT // 2 - this.Texture.get_height() // 2
+
+        # ===== DATA =====
+        this.top_3_players = []
+        this.gottop3 = False
+
+        # ===== PLAYER SCORE ANIMATION =====
+        this.scoreCounter = 0
+        this.frameCounter = 0
+
+        # ===== TOP 3 CASCADE ANIMATION =====
+        this.revealRank = 0          # đang hiển thị tới rank nào (0-2)
+        this.rankScoreCounter = 0    # score đang đếm của rank hiện tại
+        this.rankFrameCounter = 0
+
+    def update(this, playerData, score):
+        # =======================
+        # BACKGROUND
+        # =======================
+        window.blit(this.Texture, this.rect)
+
+        # =======================
+        # ĐẾM SCORE PLAYER
+        # =======================
+        this.frameCounter += 1
+        if this.frameCounter % 20 == 0:
+            if this.scoreCounter < score:
+                this.scoreCounter += 1
+
+        window.blit(
+            font.render(str(this.scoreCounter), True, (255, 255, 255)),
+            (this.rect.x + 470, this.rect.y + 100)
+        )
+
+        # =======================
+        # LOAD TOP 3 (1 LẦN)
+        # =======================
+        if not this.gottop3:
+            this.gettop3()
+
+        # =======================
+        # CASCADE TOP 3
+        # =======================
+        if this.scoreCounter == score and this.gottop3:
+
+            start_y = this.rect.y + 440
+
+            # ----- vẽ những rank đã hoàn thành -----
+            for i in range(this.revealRank):
+                player = this.top_3_players[i]
+
+                window.blit(
+                    font.render(f"{i+1}. {player['username']}", True, (255,255,255)),
+                    (this.rect.x + 110, start_y + i * 40)
+                )
+
+                window.blit(
+                    font.render(str(player['score']), True, (255,255,255)),
+                    (this.rect.x + 420, start_y + i * 40)
+                )
+
+            # ----- xử lý rank hiện tại -----
+            if this.revealRank < len(this.top_3_players):
+
+                player = this.top_3_players[this.revealRank]
+
+                this.rankFrameCounter += 1
+                if this.rankFrameCounter % 10 == 0:
+                    if this.rankScoreCounter < player["score"]:
+                        this.rankScoreCounter += 1
+
+                # vẽ username
+                window.blit(
+                    font.render(
+                        f"{this.revealRank+1}. {player['username']}",
+                        True,
+                        (255,255,255)
+                    ),
+                    (this.rect.x + 110, start_y + this.revealRank * 40)
+                )
+                # vẽ score đang đếm
+                window.blit(
+                    font.render(
+                        str(this.rankScoreCounter),
+                        True,
+                        (255,255,255)
+                    ),
+                    (this.rect.x + 420, start_y + this.revealRank * 40)
+                )
+
+                # ----- xong rank này → sang rank tiếp -----
+                if this.rankScoreCounter >= player["score"]:
+                    this.revealRank += 1
+                    this.rankScoreCounter = 0
+                    this.rankFrameCounter = 0
+
+    def gettop3(this):
+        players = []
+
+        with open(data_path, "r", encoding="utf-8") as f:
+            for line in f:
+                players.append(json.loads(line))
+
+        this.top_3_players = sorted(
+            players,
+            key=lambda x: x["score"],
+            reverse=True
+        )[:3]
+
+        this.gottop3 = True
 
 
 
